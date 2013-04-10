@@ -36,5 +36,4 @@ xc_interface *
 int
 #endif
 xen_get_xchandle (vmi_instance_t vmi);
-
 #endif

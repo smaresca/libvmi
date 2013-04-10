@@ -128,6 +128,10 @@ status_t vmi_register_event (vmi_instance_t vmi,
             }
 
             break;
+        case VMI_SINGLESTEP_EVENT:
+            dbprint("Enabling single step\n");
+            rc = driver_start_single_step(vmi, event.ss_event);
+            break;
         default:
             errprint("Unknown event type: %d\n", event->type);
     }
@@ -145,6 +149,20 @@ status_t vmi_clear_event (vmi_instance_t vmi,
     }
 
     switch(event->type) {
+       case VMI_SINGLESTEP_EVENT:
+            if(stored_event->type == VMI_SINGLESTEP_EVENT){
+                if(CHECK_VCPU_SINGLESTEP(event->ss_event, 
+                    event->vcpu_id)){
+                    dbprint("Disabling single step on vcpu: %lu\n", 
+                        event->vcpu_id);
+                    rc = driver_stop_single_step(vmi, event->vcpu_id);
+                }
+#warning do we pull from hashtable here or not. key using event->ss_event?? or what
+                if(!vmi->shutting_down && rc==VMI_SUCCESS) {
+                    g_hash_table_remove(vmi->reg_events, &(event->ss_event));
+                }
+            }
+            break;
         case VMI_EVENT_REGISTER:
             if(NULL!=g_hash_table_lookup(vmi->reg_events, &(event->reg_event.reg))) {
                 dbprint("Disabling register event on reg: %d\n",
@@ -182,4 +200,22 @@ status_t vmi_events_listen(vmi_instance_t vmi, uint32_t timeout){
     }
 
     return driver_events_listen(vmi, timeout);
+}
+
+status_t vmi_stop_single_step_vcpu(vmi_instance_t vmi, unsigned long vcpu){
+    
+    if(!(vmi->init_mode & VMI_INIT_EVENTS)){
+        return VMI_FAILURE;
+    }
+    
+    return xen_stop_single_step(vmi, vcpu);
+}
+
+status_t vmi_shutdown_single_step(vmi_instance_t vmi){
+
+    if(!(vmi->init_mode & VMI_INIT_EVENTS)){
+        return VMI_FAILURE;
+    }
+
+    return driver_shutdown_single_step(vmi);
 }

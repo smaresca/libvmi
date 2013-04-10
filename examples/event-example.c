@@ -42,6 +42,7 @@ vmi_event_t cr3_event;
 vmi_event_t msr_syscall_lm_event;
 vmi_event_t msr_syscall_compat_event;
 vmi_event_t msr_syscall_sysenter_event;
+vmi_event_t single_event;
 
 vmi_event_t kernel_vdso_event;
 vmi_event_t kernel_vsyscall_event;
@@ -174,6 +175,19 @@ void cr3_all_tasks_callback(vmi_instance_t vmi, vmi_event_t *event){
 static int interrupted = 0;
 static void close_handler(int sig){
     interrupted = sig;
+}
+
+void single_step_callback(vmi_instance_t vmi, vmi_event_t event){
+    printf("Single-step event: VCPU:%lu  GFN %"PRIx64" GLA %016"PRIx64"\n",
+        event.vcpu_id,
+        event.ss_event.gfn,
+        event.ss_event.gla);
+    reg_t rip;
+    
+    vmi_get_vcpureg(vmi, &rip, RIP, 0);
+    printf("\tRIP: %"PRIx64"\n", rip);
+    
+    vmi_clear_event(vmi, single_event);
 }
 
 int main (int argc, char **argv)
@@ -317,6 +331,13 @@ int main (int argc, char **argv)
         cr3_event.reg_event.equal = cr3;
         vmi_register_event(vmi, &cr3_event);
     }
+    
+    //Single step setup
+    memset(&single_event, 0, sizeof(vmi_event_t));
+    single_event.type = VMI_SINGLESTEP_EVENT;
+    //single_event.ss_event.vcpus = 
+    SET_VCPU_SINGLESTEP(single_event.ss_event, 0);
+    vmi_handle_event(vmi, single_event, single_step_callback);
 
     // Setup a default event for tracking memory at the syscall handler.
     // But don't install it; that will be done by the cr3 handler.

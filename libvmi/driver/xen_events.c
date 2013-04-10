@@ -293,6 +293,31 @@ status_t process_mem(vmi_instance_t vmi, mem_event_request_t req)
     return VMI_FAILURE;
 }
 
+status_t process_single_step_event(vmi_instance_t vmi, mem_event_request_t req)
+{
+    event_iter_t i;
+    vmi_event_t event, *eptr;
+    event_callback_t callback;
+    
+    xc_interface * xch;
+    unsigned long dom;
+    xch = xen_get_xchandle(vmi);
+    dom = xen_get_domainid(vmi);
+    
+    for_each_event(vmi, i, eptr, callback){
+        if(eptr->type==VMI_SINGLESTEP_EVENT){
+            event = *eptr;
+            event.ss_event.gla = req.gla;
+            event.ss_event.gfn = req.gfn;
+            event.vcpu_id = req.vcpu_id;
+            
+            callback(vmi, event);
+            return VMI_SUCCESS;
+        }
+    }
+    return VMI_FAILURE;
+}
+
 //----------------------------------------------------------------------------
 // Driver functions
 
@@ -310,6 +335,9 @@ void xen_events_destroy(vmi_instance_t vmi)
 
     if ( xe == NULL )
         return;
+    
+    //A precaution to not leave vcpus stuck in single step
+    xen_shutdown_single_step(vmi);
 
     /* Unregister for all events */
     rc = xc_hvm_set_mem_access(xch, dom, HVMMEM_access_rwx, ~0ull, 0);
@@ -641,6 +669,76 @@ status_t xen_set_int3_access(vmi_instance_t vmi, int enabled)
         HVM_PARAM_MEMORY_EVENT_INT3, param);
 }
 
+status_t xen_start_single_step(vmi_instance_t vmi, single_step_event_t event)
+{
+    unsigned long dom = xen_get_domainid(vmi);
+    int rc = -1;
+    unsigned long i = 0;
+
+    dbprint("--Starting single step on domain %lu\n", dom);
+    
+    rc = xc_set_hvm_param(
+            xen_get_xchandle(vmi), dom,
+            HVM_PARAM_MEMORY_EVENT_SINGLE_STEP, HVMPME_mode_sync);
+
+    if (rc<0) {
+        errprint("Error %d setting HVM single step\n", rc);
+        return VMI_FAILURE;
+    }
+    
+    for(;i < MAX_SINGLESTEP_VCPUS; i++){
+        if(CHECK_VCPU_SINGLESTEP(event, i)) {
+            dbprint("--Setting MTF flag on vcpu %lu\n", i);
+            if(xen_set_domain_debug_control(vmi, i, 1) == VMI_FAILURE) {
+                errprint("Error setting MTF flag on vcpu %lu\n", i);
+                goto rewind;
+            }
+        }
+    }
+
+    return VMI_SUCCESS;
+
+ rewind:
+    do {
+        xen_stop_single_step(vmi, i);
+    }while(i--);
+    
+    return VMI_FAILURE;
+}
+
+status_t xen_stop_single_step(vmi_instance_t vmi, unsigned long vcpu)
+{
+    unsigned long dom = xen_get_domainid(vmi);
+    status_t ret = VMI_FAILURE;
+
+    dbprint("--Removing MTF flag from vcpu %lu\n", vcpu);
+    
+    ret = xen_set_domain_debug_control(vmi, vcpu, 0);
+
+    return ret;
+}
+
+status_t xen_shutdown_single_step(vmi_instance_t vmi) {
+    unsigned long dom = xen_get_domainid(vmi);
+    status_t ret = VMI_FAILURE;
+    int rc = -1, i=0;
+
+    dbprint("--Shutting down single step on domain %lu\n", dom);
+    
+    for(;i<vmi->num_vcpus; i++) {
+        xen_stop_single_step(vmi, i);
+    }
+
+    rc = xc_set_hvm_param(
+            xen_get_xchandle(vmi), dom,
+            HVM_PARAM_MEMORY_EVENT_SINGLE_STEP, HVMPME_mode_disabled);
+
+    if (rc<0) {
+        errprint("Error %d disabling HVM single step\n", rc);
+        return ret;
+    }
+}
+
 status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout)
 {
     xc_interface * xch;
@@ -730,9 +828,9 @@ status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout)
                  * see xen-unstable.hg/tools/include/xen/mem_event.h
                  */
             case MEM_EVENT_REASON_SINGLESTEP:
-                /* TODO MARESCA need to handle this;
-                 * see xen-unstable.hg/tools/include/xen/mem_event.h
-                 */
+                dbprint("--Caught single step event!\n");
+                vrc = process_single_step_event(vmi, req);
+                break;
             default:
                 errprint("UNKNOWN REASON CODE %d\n", req.reason);
                 vrc = VMI_FAILURE;
@@ -759,6 +857,15 @@ status_t xen_set_reg_access(vmi_instance_t vmi, reg_event_t event){
 
 status_t xen_set_mem_access(vmi_instance_t vmi, mem_event_t event){
 	return VMI_FAILURE;
+}
+status_t xen_start_single_step(vmi_instance_t vmi, single_step_event_t event){
+    return VMI_FAILURE;
+}
+status_t xen_stop_single_step(vmi_instance_t vmi, unsigned long vcpu){
+    return VMI_FAILURE;
+}
+status_t xen_shutdown_single_step(vmi_instance_t vmi){
+    return VMI_FAILURE;
 }
 status_t xen_events_init(vmi_instance_t vmi){
 	return VMI_FAILURE;
