@@ -334,7 +334,7 @@ int main (int argc, char **argv)
     
     //Single step setup
     memset(&single_event, 0, sizeof(vmi_event_t));
-    single_event.type = VMI_SINGLESTEP_EVENT;
+    single_event.type = VMI_EVENT_SINGLESTEP;
     //single_event.ss_event.vcpus = 
     SET_VCPU_SINGLESTEP(single_event.ss_event, 0);
     vmi_handle_event(vmi, single_event, single_step_callback);

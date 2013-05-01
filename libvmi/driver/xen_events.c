@@ -305,7 +305,7 @@ status_t process_single_step_event(vmi_instance_t vmi, mem_event_request_t req)
     dom = xen_get_domainid(vmi);
     
     for_each_event(vmi, i, eptr, callback){
-        if(eptr->type==VMI_SINGLESTEP_EVENT){
+        if(eptr->type==VMI_EVENT_SINGLESTEP){
             event = *eptr;
             event.ss_event.gla = req.gla;
             event.ss_event.gfn = req.gfn;
