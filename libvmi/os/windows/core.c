@@ -763,6 +763,7 @@ windows_init(
     os_interface = safe_malloc(sizeof(struct os_interface));
     bzero(os_interface, sizeof(struct os_interface));
     os_interface->os_get_offset = windows_get_offset;
+    os_interface->os_get_kaslr_offset = NULL;
     os_interface->os_pid_to_pgd = windows_pid_to_pgd;
     os_interface->os_pgd_to_pid = windows_pgd_to_pid;
     os_interface->os_ksym2v = windows_kernel_symbol_to_address;

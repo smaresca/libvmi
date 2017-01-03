@@ -354,6 +354,7 @@ status_t linux_init(vmi_instance_t vmi) {
     os_interface = safe_malloc(sizeof(struct os_interface));
     bzero(os_interface, sizeof(struct os_interface));
     os_interface->os_get_offset = linux_get_offset;
+    os_interface->os_get_kaslr_offset = linux_get_kaslr_offset;
     os_interface->os_pid_to_pgd = linux_pid_to_pgd;
     os_interface->os_pgd_to_pid = linux_pgd_to_pid;
     os_interface->os_ksym2v = linux_symbol_to_address;
@@ -456,6 +457,17 @@ uint64_t linux_get_offset(vmi_instance_t vmi, const char* offset_name) {
         warnprint("Invalid offset name in linux_get_offset (%s).\n", offset_name);
         return 0;
     }
+}
+
+uint64_t linux_get_kaslr_offset(vmi_instance_t vmi) {
+    linux_instance_t linux_instance = vmi->os_data;
+
+    if (linux_instance == NULL) {
+        errprint("VMI_ERROR: OS instance not initialized\n");
+        return 0;
+    }
+
+    return linux_instance->kaslr_offset;
 }
 
 status_t linux_teardown(vmi_instance_t vmi) {

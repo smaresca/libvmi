@@ -45,6 +45,8 @@ status_t linux_init(vmi_instance_t instance);
 
 uint64_t linux_get_offset(vmi_instance_t vmi, const char* offset_name);
 
+uint64_t linux_get_kaslr_offset(vmi_instance_t vmi);
+
 status_t linux_symbol_to_address(vmi_instance_t instance,
         const char *symbol, addr_t *__unused, addr_t *address);
 

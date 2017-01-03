@@ -28,6 +28,8 @@
 typedef uint64_t (*os_get_offset_t)(vmi_instance_t vmi,
         const char* offset_name);
 
+typedef uint64_t (*os_get_kaslr_offset_t)(vmi_instance_t vmi);
+
 typedef vmi_pid_t (*os_pgd_to_pid_t)(vmi_instance_t vmi, addr_t pgd);
 
 typedef addr_t (*os_pid_to_pgd_t)(vmi_instance_t vmi, vmi_pid_t pid);
@@ -48,6 +50,7 @@ typedef status_t (*os_teardown_t)(vmi_instance_t vmi);
 
 typedef struct os_interface {
     os_get_offset_t os_get_offset;
+    os_get_kaslr_offset_t os_get_kaslr_offset;
     os_pgd_to_pid_t os_pgd_to_pid;
     os_pid_to_pgd_t os_pid_to_pgd;
     os_kernel_symbol_to_address_t os_ksym2v;

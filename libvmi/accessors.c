@@ -142,6 +142,17 @@ vmi_get_offset(
 }
 
 uint64_t
+vmi_get_kaslr_offset(
+    vmi_instance_t vmi)
+{
+    if (vmi->os_interface == NULL || vmi->os_interface->os_get_kaslr_offset == NULL ) {
+        return 0;
+    }
+
+    return vmi->os_interface->os_get_kaslr_offset(vmi);
+}
+
+uint64_t
 vmi_get_memsize(
     vmi_instance_t vmi)
 {

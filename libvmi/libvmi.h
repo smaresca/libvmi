@@ -1771,6 +1771,15 @@ uint64_t vmi_get_offset(
     const char *offset_name);
 
 /**
+ * Get the kernel ASLR offset currently used by the VM operating system.
+ *
+ * @param[in] vmi LibVMI instance
+ * @return The offset value
+ */
+uint64_t vmi_get_kaslr_offset(
+    vmi_instance_t vmi);
+
+/**
  * Gets the memory size of the guest or file that LibVMI is currently
  * accessing.  This is the amount of RAM allocated to the guest, but
  * does not necessarily indicate the highest addressable physical address;
